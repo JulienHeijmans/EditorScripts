@@ -1,27 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEditor;
 using System.Linq;
 using System;
-using UnityEditor;
-using UnityEditorInternal;
-
 
 public class LODExtendedUtility
-{    
-    static public GameObject GetParentLODGroupGameObject(GameObject GO)
-    {
-        LODGroup LODGroupParent = GO.GetComponentInParent<LODGroup>();
-        if (LODGroupParent == null)
-            return null;
-        LOD[] LODs = LODGroupParent.GetLODs();
-        var FoundLOD = LODs.Where(lod => lod.renderers.Where(renderer => renderer == GO.GetComponent<Renderer>()).ToArray().Count() > 0).ToArray();
-        if (FoundLOD != null && FoundLOD.Count() > 0)
-            return (LODGroupParent.gameObject);
+{
 
-        return null;
-    }
-
+    //Return the LODGroup component with a renderer pointing to a specific GameObject. If the GameObject is not part of a LODGroup, returns null 
     static public LODGroup GetParentLODGroupComponent(GameObject GO)
     {
         LODGroup LODGroupParent = GO.GetComponentInParent<LODGroup>();
@@ -36,6 +23,16 @@ public class LODExtendedUtility
         return null;
     }
 
+
+    //Return the GameObject of the LODGroup component with a renderer pointing to a specific GameObject. If the GameObject is not part of a LODGroup, returns null.
+    static public GameObject GetParentLODGroupGameObject(GameObject GO)
+    {
+        var LODGroup = GetParentLODGroupComponent(GO);
+
+        return LODGroup == null ? null : LODGroup.gameObject;
+    }
+
+    //Get the LOD # of a selected GameObject. If the GameObject is not part of any LODGroup returns -1.
     static public int GetLODid(GameObject GO)
     {
         LODGroup LODGroupParent = GO.GetComponentInParent<LODGroup>();
@@ -43,30 +40,45 @@ public class LODExtendedUtility
             return -1;
         LOD[] LODs = LODGroupParent.GetLODs();
 
-        var index = Array.FindIndex(LODs, lod => lod.renderers.Where(renderer => renderer == GO.GetComponent<Renderer>()).ToArray().Count() > 0);        
+        var index = Array.FindIndex(LODs, lod => lod.renderers.Where(renderer => renderer == GO.GetComponent<Renderer>()).ToArray().Count() > 0);
         return index;
     }
 
-    public static int GetVisibleLODSceneView(LODGroup lodGroup)
-    {
-        Camera camera = SceneView.lastActiveSceneView.camera;
-        return GetVisibleLOD(lodGroup,camera);
-    }
 
+    //returns the currently visible LOD level of a specific LODGroup, from a specific camera. If no camera is define, uses the Camera.current.
     public static int GetVisibleLOD(LODGroup lodGroup, Camera camera = null)
     {
         var lods = lodGroup.GetLODs();
-        var relativeHeight = GetRelativeHeight(lodGroup,camera ?? Camera.current);
+        var relativeHeight = GetRelativeHeight(lodGroup, camera ?? Camera.current);
 
-        var lodIndex = GetVisibleLOD(lods, GetMaxLOD(lodGroup), relativeHeight, camera);
+
+        int lodIndex = GetMaxLOD(lodGroup);
+        for (var i = 0; i < lods.Length; i++)
+        {
+            var lod = lods[i];
+
+            if (relativeHeight >= lod.screenRelativeTransitionHeight)
+            {
+                lodIndex = i;
+                break;
+            }
+        }
+
 
         return lodIndex;
+    }
+
+    //returns the currently visible LOD level of a specific LODGroup, from a the SceneView Camera.
+    public static int GetVisibleLODSceneView(LODGroup lodGroup)
+    {
+        Camera camera = SceneView.lastActiveSceneView.camera;
+        return GetVisibleLOD(lodGroup, camera);
     }
 
     static float GetRelativeHeight(LODGroup lodGroup, Camera camera)
     {
         var distance = (lodGroup.transform.TransformPoint(lodGroup.localReferencePoint) - camera.transform.position).magnitude;
-        return DistanceToRelativeHeight(camera, (distance/QualitySettings.lodBias), GetWorldSpaceSize(lodGroup));
+        return DistanceToRelativeHeight(camera, (distance / QualitySettings.lodBias), GetWorldSpaceSize(lodGroup));
     }
 
     static float DistanceToRelativeHeight(Camera camera, float distance, float size)
@@ -93,23 +105,5 @@ public class LODExtendedUtility
         largestAxis = Mathf.Max(largestAxis, Mathf.Abs(scale.y));
         largestAxis = Mathf.Max(largestAxis, Mathf.Abs(scale.z));
         return largestAxis;
-    }
-
-    static int GetVisibleLOD(LOD[] lods, int maxLOD, float relativeHeight, Camera camera = null)
-    {
-        var lodIndex = maxLOD;
-
-        for (var i = 0; i < lods.Length; i++)
-        {
-            var lod = lods[i];
-
-            if (relativeHeight >= lod.screenRelativeTransitionHeight)
-            {
-                lodIndex = i;
-                break;
-            }
-        }
-
-        return lodIndex;
     }
 }
