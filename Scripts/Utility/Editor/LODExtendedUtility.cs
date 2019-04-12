@@ -15,7 +15,6 @@ public class LODExtendedUtility
         if (LODGroupParent == null)
             return null;
         LOD[] LODs = LODGroupParent.GetLODs();
-        //Renderer[] R = LODs[0].renderers.Where(renderer => renderer==GO.GetComponent<Renderer>()).ToArray();
         var FoundLOD = LODs.Where(lod => lod.renderers.Where(renderer => renderer == GO.GetComponent<Renderer>()).ToArray().Count() > 0).ToArray();
         if (FoundLOD != null && FoundLOD.Count() > 0)
             return (LODGroupParent.gameObject);
